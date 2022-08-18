@@ -32,6 +32,7 @@ class Parser:
     def __init__(self, config):
         self.initialNav = config['nav']
         self.config = config
+        self.config['_extra'] = {}
 
     def __loadAliasesAndResolvedPaths(self, nav=None):
         if nav is None:
@@ -135,10 +136,12 @@ class Parser:
 
             if type(value) is str and value.startswith(INCLUDE_STATEMENT):
                 nav[index] = {}
-                nav[index][key] = IncludeNavLoader(
+                navLoader = IncludeNavLoader(
                     self.config,
                     value[len(INCLUDE_STATEMENT):]
-                ).read().getNav()
+                ).read()
+                nav[index][key] = navLoader.getNav()
+                self.config['_extra'][navLoader.getAlias()] = navLoader.getExtra()
 
                 if nav[index][key] is None:
                     return None
@@ -160,6 +163,7 @@ class IncludeNavLoader:
         self.absNavPath = os.path.normpath(
             os.path.join(self.rootDir, self.navPath))
         self.navYaml = None
+        self._extra = None
 
     def getAbsNavPath(self):
         return self.absNavPath
@@ -224,6 +228,9 @@ class IncludeNavLoader:
                 if navYaml:
                     self.navYaml["nav"] = navYaml[os.path.basename(docsDirPath)]
 
+            if self.navYaml and 'extra' in self.navYaml:
+                self._extra = self.navYaml.get('extra')
+
         except OSError:
             log.critical(
                 "[mkdocs-monorepo] The file path {} does not exist, ".format(self.absNavPath) +
@@ -266,6 +273,9 @@ class IncludeNavLoader:
 
     def getNav(self):
         return self._prependAliasToNavLinks(self.getAlias(), self.navYaml["nav"])
+
+    def getExtra(self):
+        return self._extra
 
     def _prependAliasToNavLinks(self, alias, nav):
         for index, item in enumerate(nav):
