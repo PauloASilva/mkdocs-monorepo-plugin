@@ -16,6 +16,7 @@ from mkdocs.plugins import BasePlugin
 from .parser import Parser
 from .merger import Merger
 from .edit_uri import set_edit_url
+import copy
 
 
 class MonorepoPlugin(BasePlugin):
@@ -69,7 +70,27 @@ class MonorepoPlugin(BasePlugin):
             if page.file.abs_src_path in self.files_source_dir:
                 page.file.abs_src_path = self.files_source_dir[page.file.abs_src_path]
                 set_edit_url(config, page, self)
+
         return page
+
+    def on_page_context(self, context, page, config, nav):
+        _context = copy.deepcopy(context)
+
+        # Override context.config.theme.language
+        segments = page.url.split('/')
+        lang = segments[2] if len(segments) >= 3 else 'en'
+        
+        _context['config']['theme'].language = lang
+
+        # Remove other translations from the navigation sidebar
+        self._custom_nav(lang, _context['nav'])
+
+        # Override context.config.extra
+        for key in config['_extra'].keys():
+            if page.url.startswith(key):
+                _context['config']['extra'] = config['_extra'][key]
+
+        return _context
 
     def on_serve(self, server, config, **kwargs):
         # Watch extra files only if this plugin was actually initialized with
@@ -98,3 +119,14 @@ class MonorepoPlugin(BasePlugin):
 
     def post_build(self, config):
         self.merger.cleanup()
+
+    def _custom_nav(self, lang, nav):
+        if nav is None:
+            return
+
+        for node in nav:
+            if hasattr(node, 'title') and str(node.title).lower() == lang.lower():
+                node.parent.children = node.children
+            else:
+                if hasattr(node, 'children'):
+                    self._custom_nav(lang, node.children)
