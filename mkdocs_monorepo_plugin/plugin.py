@@ -125,7 +125,10 @@ class MonorepoPlugin(BasePlugin):
             return
 
         for node in nav:
-            if hasattr(node, 'title') and str(node.title).lower() == lang.lower():
+            # convert entries like 'pt PT' to 'pt-pt' to match language code
+            node_title = str(node.title).replace(' ','-').lower()
+
+            if hasattr(node, 'title') and node_title == lang.lower():
                 node.parent.children = node.children
             else:
                 if hasattr(node, 'children'):
