@@ -17,7 +17,10 @@ from .parser import Parser
 from .merger import Merger
 from .edit_uri import set_edit_url
 import copy
+import sys
 
+# TODO: workaround for context deep copy
+sys.setrecursionlimit(10000)
 
 class MonorepoPlugin(BasePlugin):
     def __init__(self):
